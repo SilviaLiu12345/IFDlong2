@@ -273,6 +273,36 @@ check_tool "samtools" || exit 1
 check_tool "bedtools" || exit 1
 check_tool "minimap2" || exit 1
 
+### Check required files
+if [ -f "$codeBase/refData/$ghc/genome.fa.gz" ] && [ ! -f "$codeBase/refData/$ghc/genome.fa" ]; then
+    gunzip "$codeBase/refData/$ghc/genome.fa.gz"
+fi
+
+files=(
+  "$codeBase/refData/$ghc/genome.fa"
+  "$codeBase/refData/$ghc/genes.gtf"
+  "$codeBase/refData/$ghc/isoformAA.txt"
+  "$codeBase/refData/$ghc/pseudogenes.rds"
+  "$codeBase/refData/$ghc/rootName.txt"
+  "$codeBase/refData/$ghc/Hm_Mm_match.rds"
+  "$codeBase/refData/$ghc/allexon_NO.bed"
+  "$codeBase/refData/$ghc/gene_range_tol500.bed"
+)
+
+all_exist=true
+for f in "${files[@]}"; do
+    if [ ! -f "$f" ]; then
+        echo "Missing: $f"
+        all_exist=false
+    fi
+done
+
+if [ "$all_exist" = true ]; then
+    echo "All files exist."
+else
+    echo "Some files are missing. Please download from GitHub."
+fi
+
 
 ### Main ###
 echo "Pipeline Begin $(date '+%Y-%m-%d %H:%M:%S')"
