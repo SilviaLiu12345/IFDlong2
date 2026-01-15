@@ -286,8 +286,9 @@ quantList.gen <- function(Report, fusionRep, Isof.quantfile, Isof.quantRData, fu
     message("No isoform detected in the data")
   }
   
+  ######## Fusion quantification ################
+  ########################################
   if (is.data.frame(fusionRep)) {
-    ######## Fusion quantification ################
     multigenes.ind=grep("#",fusionRep$gene)
     fusionRep.multigenes=fusionRep[multigenes.ind,]
     fusionRep.uniquegene=fusionRep[-multigenes.ind,]
@@ -301,88 +302,93 @@ quantList.gen <- function(Report, fusionRep, Isof.quantfile, Isof.quantRData, fu
     prop=c()
     group=c()
     isoform=c()
-    for (i in 1:length(quantList)) {
-      count=c(count,quantList[[i]]$counts)
-      isoform=c(isoform,names(quantList[[i]]$prop))
-      prop=c(prop,quantList[[i]]$prop)
-      group=c(group,rep(names(quantList)[i],length(quantList[[i]]$counts)))
-    }
+    for (i in seq_along(quantList)) {
+      count   <- c(count, quantList[[i]]$counts)
+      prop    <- c(prop, quantList[[i]]$prop)
+      isoform <- c(isoform, names(quantList[[i]]$prop))
+      group   <- c(group, rep(names(quantList)[i],
+                              length(quantList[[i]]$counts)))}
     
     gene=mclapply(isoform,function(x) {
-      isofs=unlist(strsplit(x,"&"))
-      genes=c()
-      for (i in 1:length(isofs)) {
-        if (isofs[i]=="undefined") {
-          genes=c(genes,"undefined")
+      isofs <- unlist(strsplit(x, "&", fixed = TRUE))
+      genes <- sapply(isofs, function(iso) {
+        if (iso == "undefined") {
+          "undefined"
+        } else {
+          unique(gtf.dat$gene_id[gtf.dat$transcript_id == iso])
         }
-        else {
-          genes=c(genes,unique(gtf.dat$gene_id[gtf.dat$transcript_id==isofs[i]]))
-        }
-      }
-      return(paste0(genes,collapse ="&"))
-    },mc.cores = mc)
+      })
+      
+      paste(genes, collapse = "&")
+      
+    }, mc.cores = mc)
     gene=unlist(gene)
-    fusion_quant.dat=data.frame(isoform=isoform,gene=gene, group=group,prop=prop,count=count)
+    fusion_quant.dat=data.frame(isoform=isoform,gene=gene, group=group,prop=prop,count=count,stringsAsFactors=FALSE)
     
     if (length(isof.ind)!=0) {
-      isof_counts=mclapply(fusion_quant.dat$isoform,function(x) {
-        isofs=unlist(strsplit(x,"&"))
-        counts=c()
-        for (i in 1:length(isofs)) {
-          if (isofs[i]=="undefined") {
-            counts=c(counts,"undefined")
+      isof_counts <- mclapply(fusion_quant.dat$isoform, function(x) {
+        
+        isofs <- unlist(strsplit(x, "&", fixed = TRUE))
+        
+        counts <- sapply(isofs, function(iso) {
+          if (iso == "undefined") {
+            "undefined"
+          } else {
+            idx <- grepl(paste0("\\b", iso, "\\b"),
+                         fusion_quant.dat$isoform)
+            round(sum(fusion_quant.dat$count[idx], na.rm = TRUE), 2)
           }
-          else {
-            if (is.na(match(isofs[i],isof_quant.dat$isoform))) {
-              counts=c(counts,0)
-            } else {
-              counts=c(counts,round(isof_quant.dat$count[match(isofs[i],isof_quant.dat$isoform)],2))
-            }
-          }
+        })
+        
+        paste(counts, collapse = "&")
+        
+      }, mc.cores = mc)
+      fusion_quant.dat$fusion_counts=unlist(isof_counts)
+      
+      gene_counts <- mclapply(fusion_quant.dat$gene, function(x) {
+        
+        if (is.na(x) || x == "undefined") {
+          return("undefined")
         }
-        return(paste0(counts,collapse ="&"))
-      },mc.cores = mc)
-      isof_counts=unlist(isof_counts)
-      gene_counts=mclapply(fusion_quant.dat$gene,function(x) {
-        genes=unlist(strsplit(x,"&"))
-        counts=c()
-        for (i in 1:length(genes)) {
-          if (genes[i]=="undefined") {
-            counts=c(counts,"undefined")
+        
+        genes <- unlist(strsplit(x, "&", fixed = TRUE))
+        
+        counts <- sapply(genes, function(g) {
+          if (g == "undefined") {
+            "undefined"
+          } else {
+            idx <- grepl(paste0("\\b", g, "\\b"),
+                         fusion_quant.dat$gene)
+            round(sum(fusion_quant.dat$count[idx], na.rm = TRUE), 2)
           }
-          else {
-            if (is.na(match(genes[i],isof_quant.dat$gene))) {
-              counts=c(counts,0)
-            }else {
-              counts=c(counts,round(sum(isof_quant.dat$count[match(genes[i],isof_quant.dat$gene)]),2))
-            }
-          }
-        }
-        return(paste0(counts,collapse ="&"))
-      },mc.cores = mc)
-      gene_counts=unlist(gene_counts)
-    } 
-    else {
-      isof_counts=rep("0&0",dim(fusion_quant.dat)[1])
-      gene_counts=rep("0&0",dim(fusion_quant.dat)[1])
+        })
+        
+        paste(counts, collapse = "&")
+        
+      }, mc.cores = mc)
+      
+      fusion_quant.dat$gene_counts <- unlist(gene_counts)
+      
+      ## ---------------------------
+      ## Output
+      ## ---------------------------
+      write.csv(fusion_quant.dat, fusion.quantfile, row.names = FALSE)
+      
+    } else {
+      message("No fusion detected in the data")
+      fusion_quant.dat <- NULL
     }
-    
-    fusion_quant.dat$isoform_counts=isof_counts
-    fusion_quant.dat$gene_counts=gene_counts
-    write.csv(fusion_quant.dat,fusion.quantfile)
-    
-  }
-  else {
-    message("No fusion detected in the data")
-    fusion_quant.dat=NULL
-  }
   
  
   #return(list(isof_quant = isof_quant.dat))
   return(list(fusion_quant=fusion_quant.dat,isof_quant=isof_quant.dat))
+  }
 }
 
 
 #### main func
-quantList=quantList.gen(Report,fusionRep,Isof.quantfile,Isof.quantRData, fusion.quantfile,fusion.quantRData,gtf.dat,tol=1e-5,max.iter=200,mc=ncores)
+Sys.time()             
+quantList=quantList.gen(Report,fusionRep,Isof.quantfile,Isof.quantRData, 
+                        fusion.quantfile,fusion.quantRData,gtf.dat,tol=1e-5,max.iter=200,mc=ncores)
+Sys.time()
 
