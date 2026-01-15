@@ -501,6 +501,33 @@ fwrite(final, fullRepOut)
                              
 fusionfiltReOut <- paste0(PATH,"/",Aligner,"/",sampleName,"_mapped_woSecond_intersectS_buffer",buffer,"bp_fusionRep_anchor",anchorLen,"bp.filt.csv")
 
+partlength=function(parts) {
+  partAs=sapply(parts,"[[",1)
+  partBs=sapply(parts,"[[",2)
+  blocksAs=strsplit(partAs,";")
+  blocksBs=strsplit(partBs,";")
+  partAslen=sapply(blocksAs,function(p) {
+    blockAs=strsplit(p,":")
+    blockAstart=as.numeric(sapply(blockAs,"[[",2))
+    blockAend=as.numeric(sapply(blockAs,"[[",3))
+    blocklen=abs(blockAend-blockAstart)
+    partlen=sum(blocklen)
+    return(partlen)
+  })
+  
+  partBslen=sapply(blocksBs,function(p) {
+    blockBs=strsplit(p,":")
+    blockBstart=as.numeric(sapply(blockBs,"[[",2))
+    blockBend=as.numeric(sapply(blockBs,"[[",3))
+    blocklen=abs(blockBend-blockBstart)
+    partlen=sum(blocklen)
+    return(partlen)
+  })
+  partlen=cbind(partAslen,partBslen)
+  colnames(partlen)=c("partA_len","partB_len")
+  return(partlen)
+}
+      
 filteredRep=function(reportPath,fusionfiltPath,min.len=10,pseudogenes,rootNames,species="hg38",Hm_Mm_match) {
   report=read.csv(reportPath)
   allannot=strsplit(report$position, "#")
