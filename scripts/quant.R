@@ -258,6 +258,8 @@ quantList.gen <- function(Report, fusionRep, Isof.quantfile, Isof.quantRData, fu
     multigenes.ind <- grep("#", Report.isof$gene)
     Report.multigenes <- Report.isof[multigenes.ind, ]
     Report.uniquegene <- Report.isof[-multigenes.ind, ]
+    print(dim(Report.multigenes))
+    print(dim(Report.uniquegene))
     
     quantList <- quantBygene(report.multigenes = Report.multigenes, report.uniquegene = Report.uniquegene, tol = tol, max.iter = max.iter, mc = mc)
     
@@ -307,7 +309,8 @@ quantList.gen <- function(Report, fusionRep, Isof.quantfile, Isof.quantRData, fu
       prop    <- c(prop, quantList[[i]]$prop)
       isoform <- c(isoform, names(quantList[[i]]$prop))
       group   <- c(group, rep(names(quantList)[i],
-                              length(quantList[[i]]$counts)))}
+                              length(quantList[[i]]$counts)))
+      }
     
     gene=mclapply(isoform,function(x) {
       isofs <- unlist(strsplit(x, "&", fixed = TRUE))
@@ -378,17 +381,16 @@ quantList.gen <- function(Report, fusionRep, Isof.quantfile, Isof.quantRData, fu
       message("No fusion detected in the data")
       fusion_quant.dat <- NULL
     }
-  
- 
-  #return(list(isof_quant = isof_quant.dat))
-  return(list(fusion_quant=fusion_quant.dat,isof_quant=isof_quant.dat))
+    
+    
+    #return(list(isof_quant = isof_quant.dat))
+    return(list(fusion_quant=fusion_quant.dat,isof_quant=isof_quant.dat))
   }
 }
 
 
 #### main func
-Sys.time()             
-quantList=quantList.gen(Report,fusionRep,Isof.quantfile,Isof.quantRData, 
-                        fusion.quantfile,fusion.quantRData,gtf.dat,tol=1e-5,max.iter=200,mc=ncores)
+Sys.time()
+quantList=quantList.gen(Report,fusionRep,Isof.quantfile,Isof.quantRData, fusion.quantfile,fusion.quantRData, gtf.dat,tol=1e-5,max.iter=200,mc=ncores)
 Sys.time()
 
