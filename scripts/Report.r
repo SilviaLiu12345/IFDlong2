@@ -805,7 +805,7 @@ com <- do.call(
   rbind,
   lapply(dfs_to_bind, function(x) x[, collist])
 )
-head(com)
+#head(com)
 
 write.table(com, coverSReOut, row.names = FALSE, sep = ',')
 Sys.time()
