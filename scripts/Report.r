@@ -716,11 +716,8 @@ if (nrow(df2) == 0) {
     ) %>%
     ungroup()
   
-  head(df2_summary)
-  
-  
   ########### v2
-  head(df2_summary)
+  #head(df2_summary)
   
   df_counts <- df2_summary%>%
     group_by(SampleID)%>%
@@ -824,8 +821,8 @@ if (nrow(df2) == 0) {
       .groups = "drop"
     )
   
-  head(df2_summary_grouped)
-  table(df2_summary_grouped$fusion)
+  #head(df2_summary_grouped)
+  print(table(df2_summary_grouped$fusion))
   
 }
 
