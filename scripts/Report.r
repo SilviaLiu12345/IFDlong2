@@ -105,59 +105,7 @@ process_isoform_group <- function(oiso, oord, CDS_chr, CDS_start, CDS_end, CDS_s
     type = type,
     position = paste(paste(CDS_chr, CDS_start, CDS_end, CDS_strand, sep = ":"), collapse = ";")
   )
-}
-
-block_match <- function(chr_val, start_val, end_val, isoform_val, ref_df, buffer=9) {
-ref_sub <- ref_df[chr == chr_val & isoform == isoform_val]
-if (nrow(ref_sub) == 0) return(FALSE)
-any((start_val >= (ref_sub$start - buffer) & start_val <= (ref_sub$end + buffer)) &
-      (end_val >= (ref_sub$start - buffer) & end_val <= (ref_sub$end + buffer)))
-}
-
-combine_all_cols <- function(df) {
-  # Ensure all columns have names
-  if (any(names(df) == "")) {
-    names(df)[names(df) == ""] <- paste0("V", seq_len(sum(names(df) == "")))
-  }
-  
-  # Group by position
-  pos_groups <- df %>%
-    group_by(position) %>%
-    summarise(across(everything(), ~list(.x)), .groups = "drop")
-  
-  # If only 1 unique position, combine all rows with &
-  if (nrow(pos_groups) == 1) {
-    combined <- pos_groups %>%
-      mutate(across(everything(), ~paste(.x[[1]], collapse = "&")))
-    return(combined)
-  }
-  
-  # All pairwise position combinations
-  idx <- combn(nrow(pos_groups), 2)
-  
-  # Initialize a named list to hold final column values
-  final_combined <- setNames(vector("list", length = ncol(pos_groups)), names(pos_groups))
-  final_combined <- map(final_combined, ~character(0))
-  
-  for (k in seq_len(ncol(idx))) {
-    i <- idx[, k]
-    row1 <- pos_groups[i[1], ]
-    row2 <- pos_groups[i[2], ]
-    
-    for (colname in names(pos_groups)) {
-      cross <- expand.grid(row1[[colname]][[1]], row2[[colname]][[1]], stringsAsFactors = FALSE)
-      combined <- paste0(cross$Var1, "&", cross$Var2)
-      final_combined[[colname]] <- c(final_combined[[colname]], combined)
-    }
-  }
-  
-  # Collapse each column by #
-  final_combined <- map(final_combined, ~paste(.x, collapse = "#"))
-  
-  # Return as flat tibble
-  tibble::as_tibble(final_combined)
-}
-                           
+}           
 
 ####### AA
 AAannote.isof=function(temp.isof,isoformAA) {
@@ -411,6 +359,14 @@ match_info <- uncoverFilter(interSbedfile, intergenebedfile)
 print(dim(match_info))
                         
 Sys.time()
+
+block_match <- function(chr_val, start_val, end_val, isoform_val, ref_df, buffer=9) {
+ref_sub <- ref_df[chr == chr_val & isoform == isoform_val]
+if (nrow(ref_sub) == 0) return(FALSE)
+any((start_val >= (ref_sub$start - buffer) & start_val <= (ref_sub$end + buffer)) &
+      (end_val >= (ref_sub$start - buffer) & end_val <= (ref_sub$end + buffer)))
+}
+
 
 ###### split df1 and df2
 gene_counts <- match_info%>%
@@ -731,61 +687,6 @@ if (nrow(df2) == 0) {
     select(-n_rows)
   
   dim(df_counts21)
-  
-  combine_all_cols <- function(df) {
-    # Ensure all columns have names
-    if (any(names(df) == "")) {
-      names(df)[names(df) == ""] <- paste0("V", seq_len(sum(names(df) == "")))
-    }
-    
-    # Group by position
-    pos_groups <- df %>%
-      group_by(position) %>%
-      summarise(across(everything(), ~list(.x)), .groups = "drop")
-    
-    # If only 1 unique position, combine all rows with &
-    if (nrow(pos_groups) == 1) {
-      combined <- pos_groups %>%
-        mutate(across(everything(), ~paste(.x[[1]], collapse = "&")))
-      return(combined)
-    }
-    
-    # All pairwise position combinations
-    idx <- combn(nrow(pos_groups), 2)
-    
-    # Initialize a named list to hold final column values
-    final_combined <- setNames(vector("list", length = ncol(pos_groups)), names(pos_groups))
-    final_combined <- map(final_combined, ~character(0))
-    
-    for (k in seq_len(ncol(idx))) {
-      i <- idx[, k]
-      row1 <- pos_groups[i[1], ]
-      row2 <- pos_groups[i[2], ]
-      
-      for (colname in names(pos_groups)) {
-        cross <- expand.grid(row1[[colname]][[1]], row2[[colname]][[1]], stringsAsFactors = FALSE)
-        combined <- paste0(cross$Var1, "&", cross$Var2)
-        final_combined[[colname]] <- c(final_combined[[colname]], combined)
-      }
-    }
-    
-    # Collapse each column by #
-    final_combined <- map(final_combined, ~paste(.x, collapse = "#"))
-    
-    # Return as flat tibble
-    tibble::as_tibble(final_combined)
-  }
-  
-  # Apply per SampleID
-  if (nrow(df_counts21) == 0) {
-    message(" ")
-  } else {
-    # Continue only when df_counts21 is not empty
-    df2_summary_grouped1 <- df_counts21 %>%
-      group_by(SampleID) %>%
-      filter(n() >= 3) %>%
-      group_modify(~ combine_all_cols(.x))
-  }
   
   
   ###################### 
