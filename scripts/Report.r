@@ -323,36 +323,6 @@ filteredRep=function(reportPath,fusionfiltPath,min.len=10,pseudogenes,rootNames,
   write.csv(report[report$fusionlen!="failed" & report$pseudogene!="failed" & report$FamGene!="failed" & report$fusion!="N" ,],fusionfiltPath,row.names = F)
   return(report)
 }
-  
-  
-  if (inherits(try(read.table(intergenebedfile), silent = TRUE), "try-error")) {
-    read_info <- match_info
-  } else {
-    uncover_info <- read.table(intergenebedfile, stringsAsFactors = FALSE)
-    colnames(uncover_info) <- c("chr", "start", "end", "SampleID", "score", "strand", 
-                                "gene_chr", "gene_start", "gene_end", "gene_name", 
-                                "gene_score", "gene_strand", "n_base")
-    
-    unmatch_info <- uncover_info[, c(1:4, 6:9, 12, 13)]
-    unmatch_info$gene <- ifelse(uncover_info$gene_name != ".", 
-                                sapply(strsplit(uncover_info$gene_name[uncover_info$gene_name != "."], "__"), `[[`, 1), 
-                                "undefined")
-    
-    unmatch_info$isoform <- "undefined"
-    unmatch_info$order   <- "undefined"
-    colnames(unmatch_info) <- c("chr", "start", "end", "SampleID", "strand", 
-                                "CDS_chr", "CDS_start", "CDS_end", "CDS_strand", 
-                                "n_base", "gene", "isoform", "order")
-    
-    read_info <- rbind(match_info, unmatch_info)
-  }
-  
-  read_info$CDS_strand[read_info$CDS_strand == "."] <- "undefined"
-  read_info$CDS_chr[read_info$CDS_chr == "."]       <- "undefined"
-  
-  message(" Extract the CDS Covered Alignments Done!")
-  return(as.data.frame(read_info))
-}
 
 ###### read info table                        
 match_info <- uncoverFilter(interSbedfile, intergenebedfile)
