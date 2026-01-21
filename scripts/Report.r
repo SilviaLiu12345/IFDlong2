@@ -17,6 +17,9 @@ suppressPackageStartupMessages({
   install_and_load(c("data.table", "parallel", "stringr", "rlist", "dplyr", "purrr", "tidyr"))
 })
 
+library(stringr)
+library(tidyr) 
+
 
 #### parameter
 args <- commandArgs(trailingOnly = TRUE)
@@ -53,7 +56,7 @@ interSbedfile=paste0(PATH,"/",Aligner,"/",sampleName,"_mapped_woSecond_intersect
 intergenebedfile=paste0(PATH,"/",Aligner,"/",sampleName,"_mapped_woSecond_geneTol500intersectS.bed")
 coverSReOut=paste0(PATH,"/",Aligner,"/",sampleName,"_mapped_woSecond_intersectS_buffer",buffer,"bp_Rep.csv")
 
-######  all func in this script
+
 uncoverFilter <- function(interbedfile, intergenebedfile) {
   intersect_tab <- read.table(interbedfile, stringsAsFactors = FALSE)
   colnames(intersect_tab) <- c("chr", "start", "end", "SampleID", "score", "strand", 
@@ -67,7 +70,37 @@ uncoverFilter <- function(interbedfile, intergenebedfile) {
   match_info$gene    <- sapply(CDS_info, `[[`, 6)
   match_info$isoform <- sapply(CDS_info, `[[`, 1)
   match_info$order   <- sapply(CDS_info, `[[`, 7)
+  
+  if (inherits(try(read.table(intergenebedfile), silent = TRUE), "try-error")) {
+    read_info <- match_info
+  } else {
+    uncover_info <- read.table(intergenebedfile, stringsAsFactors = FALSE)
+    colnames(uncover_info) <- c("chr", "start", "end", "SampleID", "score", "strand", 
+                                "gene_chr", "gene_start", "gene_end", "gene_name", 
+                                "gene_score", "gene_strand", "n_base")
+    
+    unmatch_info <- uncover_info[, c(1:4, 6:9, 12, 13)]
+    unmatch_info$gene <- ifelse(uncover_info$gene_name != ".", 
+                                sapply(strsplit(uncover_info$gene_name[uncover_info$gene_name != "."], "__"), `[[`, 1), 
+                                "undefined")
+    
+    unmatch_info$isoform <- "undefined"
+    unmatch_info$order   <- "undefined"
+    colnames(unmatch_info) <- c("chr", "start", "end", "SampleID", "strand", 
+                                "CDS_chr", "CDS_start", "CDS_end", "CDS_strand", 
+                                "n_base", "gene", "isoform", "order")
+    
+    read_info <- rbind(match_info, unmatch_info)
+  }
+  
+  read_info$CDS_strand[read_info$CDS_strand == "."] <- "undefined"
+  read_info$CDS_chr[read_info$CDS_chr == "."]       <- "undefined"
+  
+  message(" Extract the CDS Covered Alignments Done!")
+  return(as.data.frame(read_info))
+}
 
+###### 
 process_isoform_group <- function(oiso, oord, CDS_chr, CDS_start, CDS_end, CDS_strand) {
   if (any(oiso == "undefined")) {
     return(list(
@@ -105,7 +138,7 @@ process_isoform_group <- function(oiso, oord, CDS_chr, CDS_start, CDS_end, CDS_s
     type = type,
     position = paste(paste(CDS_chr, CDS_start, CDS_end, CDS_strand, sep = ":"), collapse = ";")
   )
-}           
+}
 
 ####### AA
 AAannote.isof=function(temp.isof,isoformAA) {
@@ -324,11 +357,10 @@ filteredRep=function(reportPath,fusionfiltPath,min.len=10,pseudogenes,rootNames,
   return(report)
 }
 
-###### read info table                        
-match_info <- uncoverFilter(interSbedfile, intergenebedfile)
-print(dim(match_info))
-                        
+########isoform annotation##############
+match_info=uncoverFilter(interSbedfile,intergenebedfile)
 Sys.time()
+print(dim(match_info))
 
 block_match <- function(chr_val, start_val, end_val, isoform_val, ref_df, buffer=9) {
 ref_sub <- ref_df[chr == chr_val & isoform == isoform_val]
@@ -337,8 +369,50 @@ any((start_val >= (ref_sub$start - buffer) & start_val <= (ref_sub$end + buffer)
       (end_val >= (ref_sub$start - buffer) & end_val <= (ref_sub$end + buffer)))
 }
 
+combine_all_cols <- function(df) {
+  # Ensure all columns have names
+  if (any(names(df) == "")) {
+    names(df)[names(df) == ""] <- paste0("V", seq_len(sum(names(df) == "")))
+  }
+  
+  # Group by position
+  pos_groups <- df %>%
+    group_by(position) %>%
+    summarise(across(everything(), ~list(.x)), .groups = "drop")
+  
+  # If only 1 unique position, combine all rows with &
+  if (nrow(pos_groups) == 1) {
+    combined <- pos_groups %>%
+      mutate(across(everything(), ~paste(.x[[1]], collapse = "&")))
+    return(combined)
+  }
+  
+  # All pairwise position combinations
+  idx <- combn(nrow(pos_groups), 2)
+  
+  # Initialize a named list to hold final column values
+  final_combined <- setNames(vector("list", length = ncol(pos_groups)), names(pos_groups))
+  final_combined <- map(final_combined, ~character(0))
+  
+  for (k in seq_len(ncol(idx))) {
+    i <- idx[, k]
+    row1 <- pos_groups[i[1], ]
+    row2 <- pos_groups[i[2], ]
+    
+    for (colname in names(pos_groups)) {
+      cross <- expand.grid(row1[[colname]][[1]], row2[[colname]][[1]], stringsAsFactors = FALSE)
+      combined <- paste0(cross$Var1, "&", cross$Var2)
+      final_combined[[colname]] <- c(final_combined[[colname]], combined)
+    }
+  }
+  
+  # Collapse each column by #
+  final_combined <- map(final_combined, ~paste(.x, collapse = "#"))
+  
+  # Return as flat tibble
+  tibble::as_tibble(final_combined)
+}
 
-###### split df1 and df2
 gene_counts <- match_info%>%
  filter(gene != "undefined")%>%
  group_by(SampleID) %>%
@@ -387,6 +461,7 @@ chosen_isoforms <- iso_info %>%
              chosen_isoforms = list(iso_sub$isoform[iso_sub$pos_sig == chosen_pos]),
              continuous = TRUE)
     } else {
+      # No continuous isoforms → pick longest
       max_len <- max(x$cds_len)
       tibble(SampleID = x$SampleID[1],
              chosen_isoforms = list(x$isoform[x$cds_len == max_len]),
@@ -414,9 +489,11 @@ df1_summary <- df1 %>%
 Sys.time()
 
 
+
+# v1 correct slower
 # #### revise the continuous CDS match or unmatch
 df1_summary_cont <- df1_summary%>%filter(note == "continuous CDS and edge-matching")
-print(dim(df1_summary_cont))
+dim(df1_summary_cont)
 #head(df1_summary_cont)
 
 
@@ -482,224 +559,237 @@ df1_summary <- df1_summary %>%
  ) %>%
  ungroup()
 
+#head(df1_summary)
+#table(df1_summary$note)
+#table(df1_summary$fusion)
 
-###### df2 fusion
-Sys.time()
+#########################
+####### the df2 fusion part
+#head(df2)
+
 if (nrow(df2) == 0) {
   message("No fusion reads detected.") 
-} else {
-  
-  Sys.time()
-  # ######## the correct one, but slowerrrr
-  df2_summary <- df2 %>%
-    group_by(SampleID, gene) %>%
-    group_modify(~{
-      
-      x <- .x
-      
-      # --- build isoform-specific info ---
-      iso_info <- x %>%
-        group_split(isoform) %>%
-        map_df(function(g){
-          
-          ord <- as.numeric(g$order)
-          
-          tibble(
-            isoform     = unique(g$isoform),
-            cds_len     = sum(g$CDS_end - g$CDS_start + 1),
-            continuous  = all(diff(sort(ord)) == 1),
-            nblock      = length(ord),
-            exon_order  = paste(sort(ord), collapse = "-"),
-            pos_sig     = paste(
-              g$CDS_chr, g$CDS_start, g$CDS_end,
-              g$CDS_strand, sep = ":", collapse = ";"
+  } else {
+
+Sys.time()
+df2_summary <- df2%>%
+ group_by(SampleID, gene) %>%
+      group_modify(~{
+        
+        x <- .x
+        
+        # --- build isoform-specific info ---
+        iso_info <- x %>%
+          group_split(isoform) %>%
+          map_df(function(g){
+            
+            ord <- as.numeric(g$order)
+            
+            tibble(
+              isoform     = unique(g$isoform),
+              cds_len     = sum(g$CDS_end - g$CDS_start + 1),
+              continuous  = all(diff(sort(ord)) == 1),
+              nblock      = length(ord),
+              exon_order  = paste(sort(ord), collapse = "-"),
+              pos_sig     = paste(
+                g$CDS_chr, g$CDS_start, g$CDS_end,
+                g$CDS_strand, sep = ":", collapse = ";"
+              )
             )
-          )
-        })
-      
-      # --- isoform selection rules ---
-      if (any(iso_info$continuous)) {
+          })
         
-        iso_sub <- iso_info %>% filter(continuous)
-        
-        # longest CDS among continuous
-        max_len <- max(iso_sub$cds_len)
-        iso_sub <- iso_sub %>% filter(cds_len == max_len)
-        
-        # same long & same pos → keep them all
-        chosen_pos <- iso_sub$pos_sig[1]
-        chosen_isoforms <- iso_sub %>% filter(pos_sig == chosen_pos) %>% pull(isoform)
-        
-      } else {
-        # fallback to longest discontinuous
-        max_len <- max(iso_info$cds_len)
-        chosen_isoforms <- iso_info %>% filter(cds_len == max_len) %>% pull(isoform)
-      }
-      
-      chosen_rows <- x %>% filter(isoform %in% chosen_isoforms)
-      
-      tibble(
-        SampleID   = unique(x$SampleID),
-        gene       = unique(x$gene),
-        gene_strand= first(x$strand),
-        
-        isoform    = paste(chosen_isoforms, collapse="||"),
-        
-        nblock     = n_distinct(chosen_rows$order),
-        
-        NO.Exon    = paste(
-          sort(unique(as.numeric(chosen_rows$order))),
-          collapse = "-"
-        ),
-        
-        position   = paste(
-          paste(x$CDS_chr, x$CDS_start, x$CDS_end, x$CDS_strand, sep = ":"),
-          collapse = ";"
-        ),
-        
-        nExon_isof = NA,
-        length_isof = NA,
-        fusion = "Y",   # df2 is fusion → changed to Y automatically
-        
-        note = if (any(iso_info$continuous)) {
-          "continuous CDS and edge-matching"
+        # --- isoform selection rules ---
+        if (any(iso_info$continuous)) {
+          
+          iso_sub <- iso_info %>% filter(continuous)
+          
+          # longest CDS among continuous
+          max_len <- max(iso_sub$cds_len)
+          iso_sub <- iso_sub %>% filter(cds_len == max_len)
+          
+          # same long & same pos → keep them all
+          chosen_pos <- iso_sub$pos_sig[1]
+          chosen_isoforms <- iso_sub %>% filter(pos_sig == chosen_pos) %>% pull(isoform)
+          
         } else {
-          "discontinuous CDS"
-        },
-        
-        type = if (any(iso_info$continuous)) {
-          "normal"
-        } else {
-          "novel with deletion"
+          # fallback to longest discontinuous
+          max_len <- max(iso_info$cds_len)
+          chosen_isoforms <- iso_info %>% filter(cds_len == max_len) %>% pull(isoform)
         }
-      )
-    }) %>%
-    ungroup()
-  Sys.time()
-  
-  dim(df2_summary)
-  
-  df2_summary_cont <- df2_summary%>%filter(note == "continuous CDS and edge-matching")
-  dim(df2_summary_cont)
-  #head(df2_summary_cont)
-  
-  
-  Sys.time()
-  df2_summary_cont <- df2_summary_cont%>%
-    rowwise() %>%
-    mutate(
-      # Split position string into individual blocks as a list
-      blocks = list(str_split(position, ";")[[1]]),
-      # Check each block against reference
-      matched = all(sapply(blocks[[1]], function(b) {
-        parts <- str_split(b, ":")[[1]]
-        chr <- parts[1]
-        start <- as.integer(parts[2])
-        end <- as.integer(parts[3])
-        block_match(chr, start, end, isoform, allCDS)
-      })),
-      # Update note if any block does not match
-      note = ifelse(matched, note, "continuous CDS and edge-unmatching")
-    ) %>%
-    ungroup() %>%
-    select(-blocks, -matched)
-  Sys.time()
-  
-  df2_summary[df2_summary$note == "continuous CDS and edge-matching", ] <- df2_summary_cont
-  
-  table(df2_summary$note)
-  
-  
-  
-  #### add nExon_isof and length_isof cols
-  df2_summary <- df2_summary %>%
-    rowwise() %>%
-    mutate(
-      nExon_isof = if_else(
-        isoform == "undefined", 
-        NA_character_,
-        paste(
-          str_split(isoform, "\\|\\|")[[1]] %>%
-            sapply(function(x) {
-              val <- isoform_summary$nExon_isof[isoform_summary$isoform == x]
-              if(length(val) == 0) NA else val
-            }),
-          collapse = "||"
+        
+        chosen_rows <- x %>% filter(isoform %in% chosen_isoforms)
+        
+        tibble(
+          SampleID   = unique(x$SampleID),
+          gene       = unique(x$gene),
+          gene_strand= first(x$strand),
+          
+          isoform    = paste(chosen_isoforms, collapse="||"),
+          
+          nblock     = n_distinct(chosen_rows$order),
+          
+          NO.Exon    = paste(
+            sort(unique(as.numeric(chosen_rows$order))),
+            collapse = "-"
+          ),
+          
+          position   = paste(
+            paste(x$CDS_chr, x$CDS_start, x$CDS_end, x$CDS_strand, sep = ":"),
+            collapse = ";"
+          ),
+          
+          nExon_isof = NA,
+          length_isof = NA,
+          fusion = "Y",   # df2 is fusion → changed to Y automatically
+          
+          note = if (any(iso_info$continuous)) {
+            "continuous CDS and edge-matching"
+          } else {
+            "discontinuous CDS"
+          },
+          
+          type = if (any(iso_info$continuous)) {
+            "normal"
+          } else {
+            "novel with deletion"
+          }
         )
-      ),
-      length_isof = if_else(
-        isoform == "undefined",
-        NA_character_,
-        paste(
-          str_split(isoform, "\\|\\|")[[1]] %>%
-            sapply(function(x) {
-              val <- isoform_summary$length_isof[isoform_summary$isoform == x]
-              if(length(val) == 0) NA else val
-            }),
-          collapse = "||"
-        )
-      )
-    ) %>%
-    ungroup()
+      }) %>%
+      ungroup()
+Sys.time()
+
+
+df2_summary_cont <- df2_summary%>%filter(note == "continuous CDS and edge-matching")
+dim(df2_summary_cont)
+#head(df2_summary_cont)
+
+
+Sys.time()
+df2_summary_cont <- df2_summary_cont%>%
+ rowwise() %>%
+ mutate(
+   # Split position string into individual blocks as a list
+   blocks = list(str_split(position, ";")[[1]]),
+   # Check each block against reference
+   matched = all(sapply(blocks[[1]], function(b) {
+     parts <- str_split(b, ":")[[1]]
+     chr <- parts[1]
+     start <- as.integer(parts[2])
+     end <- as.integer(parts[3])
+     block_match(chr, start, end, isoform, allCDS)
+   })),
+   # Update note if any block does not match
+   note = ifelse(matched, note, "continuous CDS and edge-unmatching")
+ ) %>%
+ ungroup() %>%
+ select(-blocks, -matched)
+Sys.time()
+
+df2_summary[df2_summary$note == "continuous CDS and edge-matching", ] <- df2_summary_cont
+print(table(df2_summary$note))
+
+
+
+#### add nExon_isof and length_isof cols
+df2_summary <- df2_summary %>%
+ rowwise() %>%
+ mutate(
+   nExon_isof = if_else(
+     isoform == "undefined", 
+     NA_character_,
+     paste(
+       str_split(isoform, "\\|\\|")[[1]] %>%
+         sapply(function(x) {
+           val <- isoform_summary$nExon_isof[isoform_summary$isoform == x]
+           if(length(val) == 0) NA else val
+         }),
+       collapse = "||"
+     )
+   ),
+   length_isof = if_else(
+     isoform == "undefined",
+     NA_character_,
+     paste(
+       str_split(isoform, "\\|\\|")[[1]] %>%
+         sapply(function(x) {
+           val <- isoform_summary$length_isof[isoform_summary$isoform == x]
+           if(length(val) == 0) NA else val
+         }),
+       collapse = "||"
+     )
+   )
+ ) %>%
+ ungroup()
+
+#head(df2_summary)
+
+
+########### v2
+table(df2_summary$note)
+
+df_counts <- df2_summary%>%
+  group_by(SampleID)%>%
+  mutate(n_rows = n())
+
+print(dim(df_counts))
+
+# df1: groups where row count > 2
+df_counts21 <- df_counts%>%
+  filter(n_rows > 2) %>%
+  select(-n_rows)
+
   
-  ########### v2
-  #head(df2_summary)
-  
-  df_counts <- df2_summary%>%
-    group_by(SampleID)%>%
-    mutate(n_rows = n())
-  
-  dim(df_counts)
-  
-  # df1: groups where row count > 2
-  df_counts21 <- df_counts%>%
-    filter(n_rows > 2) %>%
-    select(-n_rows)
-  
-  dim(df_counts21)
-  
-  
-  ###################### 
-  # df2: groups where row count == 2
-  df_counts22 <- df_counts%>%
-    filter(n_rows == 2)%>%
-    select(-n_rows)
-  
-  dim(df_counts22)
-  
-  ######### fusion 1x1 
-  Sys.time()
-  df2_summary_grouped <- df_counts22%>%
+
+
+# Apply per SampleID
+if (nrow(df_counts21) == 0) {
+  message(" ")
+} else {
+  df2_summary_grouped1 <- df_counts21 %>%
     group_by(SampleID) %>%
-    summarise(
-      # Check if positions are all identical
-      same_position = n_distinct(position) == 1,
-      
-      # Merge each column accordingly
-      gene = if(same_position) paste(gene, collapse = "#") else paste(gene, collapse = "&"),
-      gene_strand = if(same_position) paste(gene_strand, collapse = "#") else paste(gene_strand, collapse = "&"),
-      isoform = if(same_position) paste(isoform, collapse = "#") else paste(isoform, collapse = "&"),
-      position = if(same_position) paste(position, collapse = "#") else paste(position, collapse = "&"),
-      nblock = if(same_position) paste(nblock, collapse = "#") else paste(nblock, collapse = "&"),
-      NO.Exon = if(same_position) paste(NO.Exon, collapse = "#") else paste(NO.Exon, collapse = "&"),
-      nExon_isof = if(same_position) paste(nExon_isof, collapse = "#") else paste(nExon_isof, collapse = "&"),
-      length_isof = if(same_position) paste(length_isof, collapse = "#") else paste(length_isof, collapse = "&"),
-      note = if(same_position) paste(note, collapse = "#") else paste(note, collapse = "&"),
-      type = if(same_position) paste(type, collapse = "#") else paste(type, collapse = "&"),
-      
-      # Fusion logic
-      fusion = if(same_position) "N" else "Y",
-      .groups = "drop"
-    )
-  
-  #head(df2_summary_grouped)
-  print(table(df2_summary_grouped$fusion))
-  
+    filter(n() >= 3) %>%
+    group_modify(~combine_all_cols(.x))
 }
 
-########## merge
-collist <- c("SampleID","gene","gene_strand","isoform","position","nblock","NO.Exon","nExon_isof","length_isof","fusion","note","type")
 
+###################### 
+# df2: groups where row count == 2
+df_counts22 <- df_counts%>%
+  filter(n_rows == 2)%>%
+  select(-n_rows)
+
+dim(df_counts22)
+
+######### fusion 1x1 
+Sys.time()
+df2_summary_grouped <- df_counts22%>%
+ group_by(SampleID) %>%
+ summarise(
+   # Check if positions are all identical
+   same_position = n_distinct(position) == 1,
+   
+   # Merge each column accordingly
+   gene = if(same_position) paste(gene, collapse = "#") else paste(gene, collapse = "&"),
+   gene_strand = if(same_position) paste(gene_strand, collapse = "#") else paste(gene_strand, collapse = "&"),
+   isoform = if(same_position) paste(isoform, collapse = "#") else paste(isoform, collapse = "&"),
+   position = if(same_position) paste(position, collapse = "#") else paste(position, collapse = "&"),
+   nblock = if(same_position) paste(nblock, collapse = "#") else paste(nblock, collapse = "&"),
+   NO.Exon = if(same_position) paste(NO.Exon, collapse = "#") else paste(NO.Exon, collapse = "&"),
+   nExon_isof = if(same_position) paste(nExon_isof, collapse = "#") else paste(nExon_isof, collapse = "&"),
+   length_isof = if(same_position) paste(length_isof, collapse = "#") else paste(length_isof, collapse = "&"),
+   note = if(same_position) paste(note, collapse = "#") else paste(note, collapse = "&"),
+   type = if(same_position) paste(type, collapse = "#") else paste(type, collapse = "&"),
+   
+   # Fusion logic
+   fusion = if(same_position) "N" else "Y",
+   .groups = "drop"
+ )
+
+#head(df2_summary_grouped)
+print(table(df2_summary_grouped$fusion))
+}
+
+collist <- c("SampleID","gene","gene_strand","isoform","position","nblock","NO.Exon","nExon_isof","length_isof","fusion","note","type")
 dfs_to_bind <- list(df1_summary)
 
 if (exists("df2_summary_grouped")) {
@@ -711,25 +801,16 @@ if (exists("df2_summary_grouped1")) {
 }
 
 # Apply column selection and rbind
-final <- do.call(
+com <- do.call(
   rbind,
-  lapply(dfs_to_bind, function(x) {
-    # If it's a data.table, use the .. prefix to select columns via variable
-    if (inherits(x, "data.table")) {
-      return(x[, ..collist])
-    } else {
-      # If it's a data.frame or tibble, standard selection works
-      return(x[, collist])
-    }
-  })
+  lapply(dfs_to_bind, function(x) x[, collist])
 )
+head(com)
 
-#head(com)
-dim(final)
-
-write.table(final, coverSReOut, row.names = FALSE, sep = ',')
+write.table(com, coverSReOut, row.names = FALSE, sep = ',')
 Sys.time()
-
+                        
+                 
 #####AA annotation###################
 isoformName=sapply(strsplit(isoformAA_Ref$isoformID,"__"),"[[",1)
 isoformAA=isoformAA_Ref
@@ -762,5 +843,13 @@ filtRep=filteredRep(reportPath =fullRepOut,fusionfiltPath = fusionfiltReOut,min.
                     pseudogenes=pseudogenes,rootNames=rootNames,species = species,Hm_Mm_match=Hm_Mm_match)
 
 
-print("finish annotation!")
+print("finish!!!")
+
+
+
+
+
+
+
+
 
