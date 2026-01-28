@@ -108,7 +108,7 @@ filter () {
 
 blocks () {
     echo Begin EXON-uncovered blocks generating $(date '+%Y-%m-%d %H:%M:%S')
-    $Rscript $EXONuncover $mainPath $sample $Aligner $refFile
+    $Rscript $EXONuncover $mainPath $sample $Aligner $refFile $ncores
     echo EXON-uncovered blocks generated in bed file Done!
     
     echo Begin gene range covering
