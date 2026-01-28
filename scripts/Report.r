@@ -17,10 +17,6 @@ suppressPackageStartupMessages({
   install_and_load(c("data.table", "parallel", "stringr", "rlist", "dplyr", "purrr", "tidyr"))
 })
 
-library(stringr)
-library(tidyr) 
-
-
 #### parameter
 args <- commandArgs(trailingOnly = TRUE)
 stopifnot(length(args) >= 12)
@@ -51,12 +47,20 @@ pseudogenes <- read_if_exists(refPseudo, readRDS)
 rootNames   <- read_if_exists(refRoot, fread)
 Hm_Mm_match <- read_if_exists(refHMmatch, readRDS)
 
-#### input files
-interSbedfile=paste0(PATH,"/",Aligner,"/",sampleName,"_mapped_woSecond_intersectS.bed")
-intergenebedfile=paste0(PATH,"/",Aligner,"/",sampleName,"_mapped_woSecond_geneTol500intersectS.bed")
-coverSReOut=paste0(PATH,"/",Aligner,"/",sampleName,"_mapped_woSecond_intersectS_buffer",buffer,"bp_Rep.csv")
+####### split input
+splitDir <- file.path(PATH, Aligner, "split_example")
 
+split_beds <- list.files(splitDir, pattern = "_part[0-9]+\\.bed$", full.names = TRUE)
+intersect_beds <- list.files(splitDir, pattern = "_mapped_woSecond_intersectS.bed$", full.names = TRUE)
 
+# Match pairs by part number
+get_partnum <- function(x) stringr::str_extract(basename(x), "part[0-9]+")
+pairs <- lapply(split_beds, function(a) {
+  part <- get_partnum(a)
+  inter <- intersect_beds[grep(part, intersect_beds)]
+  list(bed = a, inter = inter)})
+
+####### functions
 uncoverFilter <- function(interbedfile, intergenebedfile) {
   intersect_tab <- read.table(interbedfile, stringsAsFactors = FALSE)
   colnames(intersect_tab) <- c("chr", "start", "end", "SampleID", "score", "strand", 
@@ -357,6 +361,18 @@ filteredRep=function(reportPath,fusionfiltPath,min.len=10,pseudogenes,rootNames,
   return(report)
 }
 
+process_split <- function(pair) {
+  bedfile <- pair$bed
+  interfile <- pair$inter
+  
+  interSbedfile <- interfile
+  intergenebedfile <- sub("_intersectS.bed$", "_geneTol500intersectS.bed", interfile)
+  
+  prefix <- sub("_mapped_woSecond_intersectS.bed$", "", basename(interSbedfile))
+  
+  coverSReOut <- file.path(dirname(interSbedfile), paste0(prefix, "_mapped_woSecond_intersectS_buffer", buffer, "bp_Rep.csv"))
+
+                        
 ########isoform annotation##############
 match_info=uncoverFilter(interSbedfile,intergenebedfile)
 Sys.time()
@@ -807,9 +823,18 @@ com <- do.call(
 )
 #head(com)
 
-write.table(com, coverSReOut, row.names = FALSE, sep = ',')
-Sys.time()
-                        
+#write.table(com, coverSReOut, row.names = FALSE, sep = ',')
+  return(com)
+  Sys.time()
+
+}
+  
+results_list <- mclapply(pairs, process_split, mc.cores = ncores)
+
+final_com <- do.call(rbind, results_list)
+
+coverSReOut_final=paste0(PATH,"/", Aligner,"/",sampleName,"_mapped_woSecond_intersectS_buffer",buffer,"bp_Rep.csv")
+write.table(final_com, coverSReOut_final, row.names = FALSE, sep = ',')                     
                  
 #####AA annotation###################
 isoformName=sapply(strsplit(isoformAA_Ref$isoformID,"__"),"[[",1)
