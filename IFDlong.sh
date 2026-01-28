@@ -100,9 +100,48 @@ filter () {
 
     echo Generate BED intersect for $sample $(date '+%Y-%m-%d %H:%M:%S')
     $bedtools bamtobed -i "$outPath/${sample}_mapped_woSecond.bam" -split -cigar > $outPath/${sample}"_mapped_woSecond.bed"
-    $bedtools intersect -a $outPath/${sample}"_mapped_woSecond.bed" -b "$refFile" -f 0.90 -wao > "$outPath/${sample}_mapped_woSecond_intersectS.bed"
-    echo Intersecting Finish for $sample $(date '+%Y-%m-%d %H:%M:%S')
+    echo Finish convert the bam to bed file $(date '+%Y-%m-%d %H:%M:%S')
 
+}
+
+split_bed_by_readname () {
+    local bedfile="$outPath/${sample}_mapped_woSecond.bed"
+    local ncores="$ncores"
+    local splitDir="$outPath/split_${sample}"
+
+    echo "Splitting BED into $ncores parts"
+    mkdir -p "$splitDir"
+
+    awk -v T="$ncores" -v OUT="$splitDir/${sample}_part" '
+    {
+        read = $4
+        if (!(read in idx)) {
+            idx[read] = (count % T)
+            count++
+        }
+        print $0 >> (OUT idx[read] ".bed")
+    }
+    ' "$bedfile"
+
+    echo "Splitting done. Files:"
+    ls "$splitDir"/*.bed
+}
+
+process_split_beds () {
+    local splitDir="$outPath/split_${sample}"
+
+    for bed in "$splitDir"/*.bed; do
+        base=$(basename "$bed" .bed)
+
+        echo "Processing $base"
+
+        $bedtools intersect \
+            -a "$bed" \
+            -b "$refFile" \
+            -f 0.90 -wao \
+            > "$splitDir/${base}_mapped_woSecond_intersectS.bed"
+    done
+    echo Intersecting Finish for $sample $(date '+%Y-%m-%d %H:%M:%S')
 }
 
 
@@ -128,6 +167,10 @@ quant () {
     echo Begin isoform quantification $(date '+%Y-%m-%d %H:%M:%S')
     $Rscript $quant $mainPath $sample $Aligner $buffer $anchorLen $refGTFFile $ncores
     echo Isoform quantification done!$(date '+%Y-%m-%d %H:%M:%S')
+
+    local splitDir="$outPath/split_${sample}"
+
+    rm -r $splitDir
 }
 
 
@@ -331,6 +374,8 @@ quant="${codeBase}/scripts/quant.R"
 symlink_path
 align
 filter
+split_bed_by_readname
+process_split_beds
 blocks
 anno
 quant
