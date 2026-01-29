@@ -17,6 +17,7 @@ These packages will also be installed automatically during processing.
 Method 1: Install via conda
 ```
 git clone https://github.com/SilviaLiu12345/IFDlong2.git
+cd IFDlong2
 conda env create -f IFDlong.yaml
 conda activate IFDlong
 ```
@@ -25,7 +26,7 @@ Method 2: Install maunally
 It will automatically install the dependent tools and put their paths to the `tools.path` file.  
 ```bash
 git clone https://github.com/SilviaLiu12345/IFDlong2.git
-cd IFDlong
+cd IFDlong2
 bash Install.sh
 ```
 
