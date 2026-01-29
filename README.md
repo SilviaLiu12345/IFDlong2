@@ -14,14 +14,14 @@ Required R packages include: rlist, parallel, stringr, dplyr, Rcpp, seqRFLP, Bio
 These packages will also be installed automatically during processing.
 
 ### Installation pipeline ###
-Methods1: Install via conda
+Method 1: Install via conda
 ```
 git clone https://github.com/SilviaLiu12345/IFDlong2.git
 conda env create -f IFDlong.yaml
 conda activate IFDlong
 ```
 
-Methods2: Install maunally  
+Method 2: Install maunally  
 It will automatically install the dependent tools and put their paths to the `tools.path` file.  
 ```bash
 git clone https://github.com/SilviaLiu12345/IFDlong2.git
@@ -34,14 +34,14 @@ bash Install.sh
 Our tools include built-in support for human (hg38) and mouse (mm10) reference datasets.
 The corresponding genome.fa and genes.gtf files from the UCSC Genome Browser [illumina iGenomes](https://support.illumina.com/sequencing/sequencing_software/igenome.html). 
 
-Methods1: Install via git lfs  
+Method 1: Install via git lfs  
 Before installation, make sure **Git LFS** is [installed](https://docs.github.com/en/repositories/working-with-files/managing-large-files/installing-git-large-file-storage).  
 ```
 cd IFDlong2
 git lfs install
 git lfs pull
 ```
-Methods2: Install maunally  
+Method 2: Install maunally  
 From the GitHub repository `refData/(hg38 or mm10)`, copy the following files into the corresponding folder.
 ```
 cd IFDlong2/refData/(hg38 or mm10)
