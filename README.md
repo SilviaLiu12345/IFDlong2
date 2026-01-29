@@ -14,20 +14,21 @@ Required R packages include: rlist, parallel, stringr, dplyr, Rcpp, seqRFLP, Bio
 These packages will also be installed automatically during processing.
 
 ### Installation pipeline ###
-Methods1: Install maunally  
-It will automatically install the dependent tools and put their paths to the `tools.path` file.  
-```bash
-git clone https://github.com/wenjiaking/IFDlong.git
-cd IFDlong
-bash Install.sh
-```
-
-Methods2: Install via conda
+Methods1: Install via conda
 ```
 git clone https://github.com/wenjiaking/IFDlong.git
 conda env create -f IFDlong.yaml
 conda activate IFDlong
 ```
+
+Methods2: Install maunally  
+It will automatically install the dependent tools and put their paths to the `tools.path` file.  
+```bash
+git clone https://github.com/SilviaLiu12345/IFDlong2.git
+cd IFDlong
+bash Install.sh
+```
+
 
 ## Reference Database ##
 Our tools include built-in support for human (hg38) and mouse (mm10) reference datasets.
