@@ -16,7 +16,7 @@ These packages will also be installed automatically during processing.
 ### Installation pipeline ###
 Methods1: Install via conda
 ```
-git clone https://github.com/wenjiaking/IFDlong.git
+git clone https://github.com/SilviaLiu12345/IFDlong2.git
 conda env create -f IFDlong.yaml
 conda activate IFDlong
 ```
