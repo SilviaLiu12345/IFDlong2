@@ -151,6 +151,7 @@ blocks () {
     echo EXON-uncovered blocks generated in bed file Done!
     
     echo Begin gene range covering
+    local splitDir="$outPath/split_${sample}"
     for bed in "$splitDir"/*_woSecond_intersectS_EXONuncover.bed; do
         filename=$(basename "$bed" .bed)
         base=${filename%%_woSecond_intersectS_EXONuncover}
