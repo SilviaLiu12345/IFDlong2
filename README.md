@@ -81,7 +81,7 @@ Required options:
 -g, --ghc         Human (hg38), mouse (mm10) or other self-defined species (the same value as -g in refDataSetup.sh), hg38 by default
 -t, --bufferLen   The buffer length for novel isoform identification, 9 by default
 -a, --anchorLen   The anthor length for fusion filtering, 10 by default
--c, --ncores      How many cores are assigned to run the pipeline in parallel. Use 4 core by default
+-c, --ncores      How many cores are assigned to run the pipeline in parallel. Use 1 core by default
 
 ```
 
