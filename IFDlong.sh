@@ -147,11 +147,23 @@ process_split_beds () {
 
 blocks () {
     echo Begin EXON-uncovered blocks generating $(date '+%Y-%m-%d %H:%M:%S')
-    $Rscript $EXONuncover $mainPath $sample $Aligner $refFile
+    $Rscript $EXONuncover $mainPath $sample $Aligner $refFile $ncores
     echo EXON-uncovered blocks generated in bed file Done!
     
     echo Begin gene range covering
-    $bedtools intersect -a $outPath/$sample"_mapped_woSecond_intersectS_EXONuncover.bed" -b $refFiletol  -f 0.90  -wao > $outPath/${sample}"_mapped_woSecond_geneTol500intersectS.bed"
+    for bed in "$splitDir"/*_woSecond_intersectS_EXONuncover.bed; do
+        filename=$(basename "$bed" .bed)
+        base=${filename%%_woSecond_intersectS_EXONuncover}
+    
+        echo "Processing $base"
+    
+        # Run bedtools intersect
+        bedtools intersect \
+            -a "$bed" \
+            -b "$refFiletol" \
+            -f 0.90 -wao \
+            > "$splitDir/${base}_mapped_woSecond_geneTol500intersectS.bed"
+    done
     echo Gene range covering done!
 }
 
