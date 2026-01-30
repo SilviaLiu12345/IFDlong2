@@ -13,6 +13,7 @@ suppressPackageStartupMessages({
 
 #### parameter
 args = commandArgs(trailingOnly=TRUE)
+stopifnot(length(args) >= 7)
 
 PATH <- args[1]
 sampleName <- args[2]
@@ -20,7 +21,7 @@ Aligner <- args[3]
 buffer <- as.integer(args[4])
 anchorLen <- as.integer(args[5])
 refGTF <- args[6] #refData/genes.gtf"
-ncores=args[7]
+ncores <- args[7]
 
 
 reportfile=paste0(PATH,"/",Aligner,"/",sampleName,"_mapped_woSecond_intersectS_buffer",buffer,"bp_Rep.csv")
@@ -280,7 +281,8 @@ quantList.gen <- function(Report, fusionRep, Isof.quantfile, Isof.quantRData, fu
     gene <- mclapply(isoform, function(x) unique(gtf.dat$gene_id[gtf.dat$transcript_id == x]), mc.cores = mc)
     gene[sapply(gene, length) == 0] <- "undefined"
     
-    isof_quant.dat <- data.frame(isoform = isoform, gene = unlist(gene), group = group, prop = prop, count = count)
+    isof_quant.dat <- data.frame(isoform = isoform, gene = unlist(gene), group = group, prop = prop, count = count)%>%
+      filter(!(prop == 0 & count == 0))
     write.csv(isof_quant.dat, file = Isof.quantfile, row.names = FALSE)
     
   } else {
@@ -371,10 +373,8 @@ quantList.gen <- function(Report, fusionRep, Isof.quantfile, Isof.quantRData, fu
       }, mc.cores = mc)
       
       fusion_quant.dat$gene_counts <- unlist(gene_counts)
-      
-      ## ---------------------------
-      ## Output
-      ## ---------------------------
+
+      fusion_quant.dat <- fusion_quant.dat[!(fusion_quant.dat$prop == 0 & fusion_quant.dat$count == 0), ]
       write.csv(fusion_quant.dat, fusion.quantfile, row.names = FALSE)
       
     } else {
