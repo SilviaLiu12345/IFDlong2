@@ -278,8 +278,28 @@ quantList.gen <- function(Report, fusionRep, Isof.quantfile, Isof.quantRData, fu
       group <- c(group, rep(names(quantList)[i], length(quantList[[i]]$counts)))
     }
     
-    gene <- mclapply(isoform, function(x) unique(gtf.dat$gene_id[gtf.dat$transcript_id == x]), mc.cores = mc)
-    gene[sapply(gene, length) == 0] <- "undefined"
+    gene <- mclapply(seq_along(isoform), function(i) {
+      isof_name <- isoform[i]
+      group_name <- group[i]
+      
+      # Check if isoform is undefined
+      if (isof_name == "undefined" || grepl("\\|\\||#", isof_name)) {
+        # If it's a single gene group (no #), use the group name
+        if (!grepl("#", group_name)) {
+          return(group_name)
+        } else {
+          return("undefined")
+        }
+      }
+      
+      gid <- unique(gtf.dat$gene_id[gtf.dat$transcript_id == isof_name])
+      if (length(gid) == 0 || is.na(gid)) {
+        # Fallback for single gene groups if lookup fails
+        if (!grepl("#", group_name)) group_name else "undefined"
+      } else {
+        gid
+      }
+    }, mc.cores = mc)
     
     isof_quant.dat <- data.frame(isoform = isoform, gene = unlist(gene), group = group, prop = prop, count = count)%>%
       filter(!(prop == 0 & count == 0))
