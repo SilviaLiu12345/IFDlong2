@@ -48,7 +48,7 @@ rootNames   <- read_if_exists(refRoot, fread)
 Hm_Mm_match <- read_if_exists(refHMmatch, readRDS)
 
 ####### split input
-splitDir <- file.path(PATH, Aligner, "split_example")
+splitDir <- file.path(mainPath, Aligner, paste0("split_", sampleName))
 
 split_beds <- list.files(splitDir, pattern = "_part[0-9]+\\.bed$", full.names = TRUE)
 intersect_beds <- list.files(splitDir, pattern = "_mapped_woSecond_intersectS.bed$", full.names = TRUE)
