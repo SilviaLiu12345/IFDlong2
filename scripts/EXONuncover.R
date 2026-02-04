@@ -33,8 +33,8 @@ cat("Loading reference exon file:", refEXON, "\n")
 cds <- fread(refEXON, col.names = c("chr", "start", "end", "name", "score", "strand"))
 cds[, isoform := tstrsplit(name, "__")[[1]]]
 
-splitDir <- file.path(mainPath, Aligner, "split_example")
-baseFiles <- list.files(splitDir, pattern = "example_part[0-9]+\\.bed$", full.names = TRUE)
+splitDir <- file.path(mainPath, Aligner, paste0("split_", sampleName))
+baseFiles <- list.files(splitDir, pattern = paste0(sampleName, "_part[0-9]+\\.bed$"), full.names = TRUE)
 
 process_pair <- function(bedFile) {
   interFile <- gsub("\\.bed$", "_mapped_woSecond_intersectS.bed", bedFile)
