@@ -214,7 +214,7 @@ echo $codeBase
 while [[ $# -gt 0 ]]; do
   case "$1" in
     -h|--help)
-      print_help_and_exit
+      usage
       ;;
 
     -o|--outDir)
