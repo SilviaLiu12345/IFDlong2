@@ -308,8 +308,7 @@ check_tool() {
     latest_version="0"
 
     for path in "${tool_paths[@]}"; do
-        # Get version number, e.g., "4.4.3"
-        version=$("$path" --version 2>&1 | grep -oP '\d+\.\d+\.\d+')
+        version=$("$path" --version 2>&1 | grep -oP '\d+(\.\d+)+' | head -n1)
 
         # Compare versions
         if [[ $(printf '%s\n%s\n' "$version" "$latest_version" | sort -V | tail -n1) == "$version" ]]; then
