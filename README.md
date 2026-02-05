@@ -48,6 +48,7 @@ From the GitHub repository `refData/(hg38 or mm10)`, copy the following files in
 cd IFDlong2/refData/(hg38 or mm10)
 - Copy `genome.fa.gz`
 - Copy `genes.gtf`
+- Copy `isoformAA.txt`
 ```
 
 ## Usage ##
