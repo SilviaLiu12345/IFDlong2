@@ -2,16 +2,17 @@
 
 ## About ##
 
-IFDlong is a bioinformatics pipeline that can perform long-read RNA-seq annotation at isoform levels, fusion detection, as well as fusion and isoform quantification.
+IFDlong is a probabilistic framework and software suite for detecting isoform and fusion transcripts from bulk or single-cell long-RNA-seq data. IFDlong annotates each long read, identifies novel isoforms, quantifies expression via an expectation-maximization algorithm, and profiles fusion transcripts. 
 
 
 ## Installation ##
 ### Dependencies ###
-R (≥ 4.4.0) along with a compatible version of gcc (12.2.0).  
-The following tools are required for running IFDlong: minimap2 (≥ 2.30), bedtools (≥ 2.31), and samtools (≥ 1.17)  
-If these tools are not already installed, they will be installed automatically during the install.sh step.
-Required R packages include: rlist, parallel, stringr, dplyr, Rcpp, seqRFLP, BiocManager, rtracklayer, and Biostrings.
-These packages will also be installed automatically during processing.
+R (version ≥ 4.4.0) is required, along with a compatible version of gcc (12.2.0).
+
+The following external tools are required to run IFDlong: minimap2 (≥ 2.30), bedtools (≥ 2.31), and samtools (≥ 1.17). If these tools are not already installed, they will be installed automatically during the Install.sh step. (Capital “I")
+
+Required R packages include data.table, parallel, stringr, rlist, dplyr, purrr, tidyr. These packages will also be installed automatically during the installation or processing steps.
+
 
 ### Installation pipeline ###
 Method 1: Install via conda
@@ -28,6 +29,7 @@ It will automatically install the dependent tools and put their paths to the `to
 git clone https://github.com/SilviaLiu12345/IFDlong2.git
 cd IFDlong2
 bash Install.sh
+source path/to/IFDlong2/tools.path
 ```
 
 
