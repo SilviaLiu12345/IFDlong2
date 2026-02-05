@@ -368,7 +368,7 @@ quantList.gen <- function(Report, fusionRep, Isof.quantfile, Isof.quantRData, fu
         paste(counts, collapse = "&")
         
       }, mc.cores = mc)
-      fusion_quant.dat$fusion_counts=unlist(isof_counts)
+      fusion_quant.dat$isof_counts=unlist(isof_counts)
       
       gene_counts <- mclapply(fusion_quant.dat$gene, function(x) {
         
