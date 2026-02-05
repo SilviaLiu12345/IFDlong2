@@ -51,11 +51,6 @@ cd IFDlong2/refData/(hg38 or mm10)
 ```
 
 ## Usage ##
-### Quick Start
-```bash
-bash IFDlong.sh -o output_directory -n sample_name -i input_file -l "self_align" -g "hg38" -t 9 -a 10
-```
-
 #### Demo
 To verify your installation and run a example.
 
