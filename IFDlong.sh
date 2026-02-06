@@ -14,7 +14,7 @@ usage() {
     echo "  -n, --name        Sample name prefix for output files."
     echo "  -i, --inFile      Input file (supported formats: .fq, .fq.gz, .fastq, .fastq.gz, .fa, .fa.gz, .fasta, .fasta.gz, .bam)."
     echo "  -l, --aligner     The aligner used to generate the bam file. Set to be 'self_align' if missing."
-    echo "  -g, --ghc         Human (hg38), mouse (mm10), hg38 by default."
+    echo "  -g, --ghc         hg38 (Human), mm10 (Mouse), hg38 by default."
     echo "  -t, --bufferLen   The buffer length in base pairs for novel isoform identification, 9 by default."
     echo "  -a, --anchorLen   The anchor length in base pairs for fusion identification, 10 by default."
     echo "  -c, --ncores      How many cores are assigned to run the pipeline in parallel. Use 1 core by default"
