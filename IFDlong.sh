@@ -320,7 +320,7 @@ check_tool() {
         fi
     done
 
-    echo "$tool_name found at: $latest_path (version $latest_version)"
+    echo "[OK] $tool_name found at: $latest_path (version $latest_version)"
     eval "${tool_name}='$latest_path'"
 }
 
@@ -347,22 +347,22 @@ files=(
   "$codeBase/refData/$ghc/gene_range_tol500.bed"
 )
 
-all_exist=true
+all_valid=true
 
 min_size=1024
 echo "Checking Reference Files"
 for f in "${files[@]}"; do
-    if [ ! -f "$f" ]; then
+    # Use -e to check if the path (or symlink target) exists
+    if [ ! -e "$f" ]; then
         echo "[MISSING] $f"
         all_valid=false
     else
-        # Check file size in bytes
+        # Get size of target file
         fsize=$(stat -L -c%s "$f" 2>/dev/null)
-        if [ -L "$f" ] && [ -z "$fsize" ]; then
-             echo "[BROKEN LINK] $f points to a non-existent file."
-             all_valid=false
-        elif [ "$fsize" -lt "$min_size" ]; then
-            echo "[INVALID] $f is too small ($fsize bytes). Likely an LFS pointer or empty file."
+        
+        # Check if fsize is empty (happens with broken links) or too small
+        if [ -z "$fsize" ] || [ "$fsize" -lt "$min_size" ]; then
+            echo "[INVALID] $(basename "$f") is too small or broken ($fsize bytes)."
             all_valid=false
         else
             echo "[OK] $(basename "$f") ($((fsize/1024)) KB)"
