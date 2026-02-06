@@ -6,8 +6,8 @@ echo "Command: $0 $@"
 ### Functions ###
 usage() {
     echo "IFDlong perform isoform-level annotation of long-read RNA-seq data, detect gene fusions, and quantify both fusions and isoforms."
-    echo -e "\tDemo working directory is example folder"
-    echo "Usage:"
+    printf "\n"
+    echo "Usage: bash IFDlong.sh -o output_directory -n sample_name -i input_file -l 'self_align' -g 'hg38' -t 9 -a 10 -c 1"
     echo "Options:"
     echo "  -h, --help        Check the usage."
     echo "  -o, --outDir      The directory to save the output."
@@ -18,11 +18,12 @@ usage() {
     echo "  -t, --bufferLen   The buffer length for novel isoform identification, 9 by default."
     echo "  -a, --anchorLen   The anthor length for fusion filtering, 10 by default."
     echo "  -c, --ncores      How many cores are assigned to run the pipeline in parallel. Use 4 core by default"
-
-    echo "    Questions or issues? Contact: Silvia (shl96[at].pitt.edu)"
-    echo "    Modified date: 08 Aug. 2025"
-    echo "    Modified date: 21 Nov. 2025"
-    echo "    Modified date: 05 Feb. 2026"
+    printf "\n"
+    printf "\n"
+    echo "Questions or issues? Contact: Silvia (shl96[at].pitt.edu)"
+    #echo "Modified date: 08 Aug. 2025"
+    #echo "Modified date: 21 Nov. 2025"
+    echo "Modified date: 05 Feb. 2026"
 }
 
 
@@ -60,7 +61,8 @@ align () {
       outPath=$mainPath/$Aligner
       BAMfile=$outPath/$sample.bam
 
-      echo $outPath $Aligner
+      echo "Output Path: $outPath"
+      echo "Aligner:     $Aligner"
 
       mkdir -p "$outPath"
     
@@ -208,8 +210,8 @@ ncores=1
 mainPath="output"
 codeBase="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
-echo $mainPath 
-echo $codeBase
+#echo $mainPath 
+#echo $codeBase
 
 ### Argument Parsing ###
 while [[ $# -gt 0 ]]; do
@@ -346,17 +348,31 @@ files=(
 )
 
 all_exist=true
+
+min_size=1024
+echo "Checking Reference Files"
 for f in "${files[@]}"; do
     if [ ! -f "$f" ]; then
-        echo "Missing: $f"
-        all_exist=false
+        echo "[MISSING] $f"
+        all_valid=false
+    else
+        # Check file size in bytes
+        fsize=$(stat -c%s "$f")
+        if [ "$fsize" -lt "$min_size" ]; then
+            echo "[INVALID] $f is too small ($fsize bytes). It is likely a Git LFS pointer."
+            all_valid=false
+        else
+            echo "[OK] $(basename "$f") ($((fsize/1024)) KB)"
+        fi
     fi
 done
 
-if [ "$all_exist" = true ]; then
-    echo "All files exist."
+if [ "$all_valid" = true ]; then
+    echo "All reference files exist"
 else
-    echo "Some files are missing. Please download from GitHub."
+    echo "Error: Some files are missing or invalid LFS pointers."
+    echo "Please download from GitHub."
+    exit 1
 fi
 
 
@@ -378,7 +394,7 @@ refRootFile=$codeBase/refData/$ghc/rootName.txt
 hmmatchFile=$codeBase/refData/$ghc/Hm_Mm_match.rds
 
 ## Path to scripts used by the IFDlong pipeline
-echo $codeBase
+#echo $codeBase
 EXONuncover="${codeBase}/scripts/EXONuncover.R"
 report="${codeBase}/scripts/Report.r"
 quant="${codeBase}/scripts/quant.R"
