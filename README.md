@@ -75,7 +75,7 @@ Required options:
 -n, --name        Sample name prefix for output files
 -i, --inFile      Input file (supported formats: .fq, .fq.gz, .fastq, .fastq.gz, .fa, .fa.gz, .fasta, .fasta.gz, .bam)
 -l, --aligner     The aligner used to generate the bam file. Set to be 'self_align' if missing.
--g, --ghc         Human (hg38), mouse (mm10), hg38 by default
+-g, --ghc         hg38 (Human), mm10 (Mouse), hg38 by default
 -t, --bufferLen   The buffer length in base pairs for novel isoform identification, 9 by default
 -a, --anchorLen   The anchor length in base pairs for fusion identification, 10 by default
 -c, --ncores      Number of cores are assigned to run the pipeline in parallel. Use 1 core by default
