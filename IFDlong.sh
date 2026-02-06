@@ -357,9 +357,12 @@ for f in "${files[@]}"; do
         all_valid=false
     else
         # Check file size in bytes
-        fsize=$(stat -c%s "$f")
-        if [ "$fsize" -lt "$min_size" ]; then
-            echo "[INVALID] $f is too small ($fsize bytes). It is likely a Git LFS pointer."
+        fsize=$(stat -L -c%s "$f" 2>/dev/null)
+        if [ -L "$f" ] && [ -z "$fsize" ]; then
+             echo "[BROKEN LINK] $f points to a non-existent file."
+             all_valid=false
+        elif [ "$fsize" -lt "$min_size" ]; then
+            echo "[INVALID] $f is too small ($fsize bytes). Likely an LFS pointer or empty file."
             all_valid=false
         else
             echo "[OK] $(basename "$f") ($((fsize/1024)) KB)"
@@ -368,10 +371,10 @@ for f in "${files[@]}"; do
 done
 
 if [ "$all_valid" = true ]; then
-    echo "All reference files exist"
+    echo "[Success] All reference files exist and are valid."
 else
-    echo "Error: Some files are missing or invalid LFS pointers."
-    echo "Please download from GitHub."
+    echo "[Error] Some files are missing, broken links, or invalid LFS pointers."
+    echo "If these are 134-byte files, run 'git lfs pull'."
     exit 1
 fi
 
@@ -412,14 +415,14 @@ quant
 if [ -f "$outPath/${sample}_mapped_woSecond_intersectS_buffer9bp_Isof_quant.csv" ]; then
     cp "$outPath/${sample}_mapped_woSecond_intersectS_buffer9bp_Isof_quant.csv" "$mainPath/${sample}_Isof_quant.csv"
 else
-    echo "Warning: Isof quant results not found. If you encounter any issues, feel free to report them on GitHub."
+    echo "[Warning] Isof quant results not found. If you encounter any issues, feel free to report them on GitHub."
 fi
 
 # Copy Fusion quant file if it exists
 if [ -f "$outPath/${sample}_mapped_woSecond_intersectS_buffer9bp_Fusion_quant_anchor10bp.csv" ]; then
     cp "$outPath/${sample}_mapped_woSecond_intersectS_buffer9bp_Fusion_quant_anchor10bp.csv" "$mainPath/${sample}_Fusion_quant.csv"
 else
-    echo "Warning: Fusion quant results not found. If you encounter any issues, feel free to report them on GitHub."
+    echo "[Warning] Fusion quant results not found. If you encounter any issues, feel free to report them on GitHub."
 fi
 
 
